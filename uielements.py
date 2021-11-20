@@ -1,6 +1,5 @@
 import pygame
 import scenes
-from typing import Tuple, Callable, List, Union
 
 # This module contains elements used by the UI (buttons, etc.)
 

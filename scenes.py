@@ -1,5 +1,7 @@
 import pygame
 import math
+
+from algorithm import *
 from uielements import *
 
 
@@ -124,41 +126,68 @@ class SimulateScene(Scene):
         super().__init__()
         self.ui = {
         }
-        self.states = []
         self.selected = None
         self.arrow = None
+        self.automaton = Automaton()
 
     def handle_events(self, events):
         super().handle_events(events)
-
-        self.arrow = None
 
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = pygame.mouse.get_pos()
                 found = False
-                for c, s in enumerate(self.states):
-                    if math.dist(s, pos) < 30:
-                        self.selected = c
+                for s in self.automaton.states:
+                    if math.dist(self.automaton.states[s], pos) < 30:
+                        if self.arrow is not None:
+                            val = len([s for (s, v) in self.automaton.transitions if s == self.selected])
+                            self.automaton.add_transition(self.selected, s, str(val))
+                            print(self.automaton.transitions)
+                        else:
+                            self.selected = s
                         found = True
                 if not found:
-                    self.states.append(pygame.mouse.get_pos())
+                    self.selected = None
+                    i = 0
+                    while (lbl := f"q{i}") in self.automaton.states.keys():
+                        i += 1
+                    self.automaton.states[lbl] = pygame.mouse.get_pos()
 
         if pygame.key.get_pressed()[pygame.K_ESCAPE]:
             self.selected = None
         elif pygame.key.get_pressed()[pygame.K_LSHIFT] and self.selected is not None:
             self.arrow = pygame.mouse.get_pos()
+        else:
+            self.arrow = None
+
+        if pygame.key.get_pressed()[pygame.K_e]:
+            self.switch(StateSettingsScene, [self])
 
     def render(self, surface):
         super().render(surface)
-        for c, s in enumerate(self.states):
-            color = (150, 150, 255) if c == self.selected else (0, 0, 0)
-            pygame.draw.circle(surface, color, s, 30, 3)
+        for s in self.automaton.states:
+            color = (150, 150, 255) if s == self.selected else (0, 0, 0)
+            pygame.draw.circle(surface, color, self.automaton.states[s], 30, 3)
+
+        for (s, v), e in self.automaton.transitions.items():
+            x1 = self.automaton.states[s][0]
+            y1 = self.automaton.states[s][1]
+            x2 = self.automaton.states[e][0]
+            y2 = self.automaton.states[e][1]
+            angle = math.atan2(y1 - y2, x1 - x2)
+            adjusted_start = (x1 - (math.cos(angle) * 30), y1 - (math.sin(angle) * 30))
+            adjusted_end = (x2 + (math.cos(angle) * 30), y2 + (math.sin(angle) * 30))
+            pygame.draw.line(surface, (0, 0, 0), adjusted_start, adjusted_end, 3)
+
+            # Arrow head
+            arrow_l = (adjusted_end[0] + (math.cos(angle - 0.5) * 10), adjusted_end[1] + (math.sin(angle - 0.5) * 10))
+            arrow_r = (adjusted_end[0] + (math.cos(angle + 0.5) * 10), adjusted_end[1] + (math.sin(angle + 0.5) * 10))
+            pygame.draw.polygon(surface, (0, 0, 0), [adjusted_end, arrow_l, arrow_r], width=0)
 
         if self.arrow is not None:
             # For making the arrow start from the edge of a circle, rather than the center
-            x = self.states[self.selected][0]
-            y = self.states[self.selected][1]
+            x = self.automaton.states[self.selected][0]
+            y = self.automaton.states[self.selected][1]
             angle = math.atan2(y - self.arrow[1], x - self.arrow[0])
             adjusted_start = (x - (math.cos(angle) * 30), y - (math.sin(angle) * 30))
             adjusted_end = (self.arrow[0] + (math.cos(angle) * 3), self.arrow[1] + (math.sin(angle) * 3))
@@ -168,3 +197,20 @@ class SimulateScene(Scene):
             arrow_l = (self.arrow[0] + (math.cos(angle - 0.5) * 10), self.arrow[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (self.arrow[0] + (math.cos(angle + 0.5) * 10), self.arrow[1] + (math.sin(angle + 0.5) * 10))
             pygame.draw.polygon(surface, (0, 0, 0), [self.arrow, arrow_l, arrow_r], width=0)
+
+
+class StateSettingsScene(Scene):
+    def __init__(self, background):
+        super().__init__()
+        self.background = background
+
+    def handle_events(self, events):
+        pass
+
+    def render(self, surface):
+        self.background.render(surface)
+        sr = pygame.display.get_surface().get_rect()
+        veil = pygame.Surface(sr.size)
+        pygame.draw.rect(veil, (20, 20, 20), surface.get_rect())
+        veil.set_alpha(150)
+        surface.blit(veil, (0, 0))
