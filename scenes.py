@@ -144,7 +144,9 @@ class SimulateScene(Scene):
                 if not found:
                     self.states.append(pygame.mouse.get_pos())
 
-        if pygame.key.get_pressed()[pygame.K_LSHIFT] and self.selected is not None:
+        if pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            self.selected = None
+        elif pygame.key.get_pressed()[pygame.K_LSHIFT] and self.selected is not None:
             self.arrow = pygame.mouse.get_pos()
 
     def render(self, surface):
