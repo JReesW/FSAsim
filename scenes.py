@@ -130,13 +130,17 @@ class SimulateScene(Scene):
         self.arrow = None
         self.automaton = Automaton()
 
+        self.drag = 0
+
     def handle_events(self, events):
         super().handle_events(events)
 
+        pos = pygame.mouse.get_pos()
+
+        # print(self.drag)
         for event in events:
             # Check if the left mouse button is down
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                pos = pygame.mouse.get_pos()
                 found = False
                 # Check if the mouse click happened inside a state circle
                 for s in self.automaton.states:
@@ -149,6 +153,7 @@ class SimulateScene(Scene):
                         else:
                             # Set the clicked on state as the currently selected state
                             self.selected = s
+                            self.drag = 1
                         found = True
                 # If no state was detected, deselect the currently selected object
                 if not found:
@@ -159,6 +164,15 @@ class SimulateScene(Scene):
                         while (lbl := f"q{i}") in self.automaton.states.keys():
                             i += 1
                         self.automaton.states[lbl] = pygame.mouse.get_pos()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                self.drag = 0
+
+        if self.drag == 10 and math.dist(pos, self.automaton.states[self.selected]) > 30:
+            self.drag = 11
+        elif self.drag == 11:
+            self.automaton.states[self.selected] = pos
+        elif self.drag > 0:
+            self.drag += 1
 
         # Deselect the currently selected object by pressing the escape key
         if pygame.key.get_pressed()[pygame.K_ESCAPE]:
@@ -166,6 +180,9 @@ class SimulateScene(Scene):
         # Create an arrow from the currently selected state to the mouse pointer
         elif pygame.key.get_pressed()[pygame.K_LSHIFT] and self.selected is not None:
             self.arrow = pygame.mouse.get_pos()
+        elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selected is not None:
+            self.automaton.remove_state(self.selected)
+            self.selected = None
         else:
             self.arrow = None
 

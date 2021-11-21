@@ -20,6 +20,14 @@ class Automaton:
     def add_state(self, label, pos):
         self.states[label] = pos
 
+    def remove_state(self, label):
+        del self.states[label]
+
+        self.transitions = {(s, v): e for (s, v), e in self.transitions.items() if label not in [s, e]}
+        self.acceptors = [a for a in self.acceptors if a != label]
+        if self.start == label:
+            self.start = None
+
     def transition(self, label, letter):
         if (label, letter) in self.transitions:
             return self.transitions[(label, letter)]
@@ -65,8 +73,10 @@ class Automaton:
 # test.add_transition("q3", "q3", "0")
 # test.add_transition("q3", "q3", "1")
 #
-# test.start = "q0"
-# test.acceptors = ["q3"]
+# # test.start = "q0"
+# # test.acceptors = ["q3"]
+# test.remove_state("q2")
 #
 #
-# print(test.run("000010"))
+# print(test.states)
+# print(test.transitions)
