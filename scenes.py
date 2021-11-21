@@ -153,6 +153,7 @@ class SimulateScene(Scene):
                         else:
                             # Set the clicked on state as the currently selected state
                             self.selected = s
+                            # Set the dragging counter to 1, to initiate dragging
                             self.drag = 1
                         found = True
                 # If no state was detected, deselect the currently selected object
@@ -165,13 +166,18 @@ class SimulateScene(Scene):
                             i += 1
                         self.automaton.states[lbl] = pygame.mouse.get_pos()
             elif event.type == pygame.MOUSEBUTTONUP:
+                # Stop the dragging state when the left mouse button is released
                 self.drag = 0
 
-        if self.drag == 10 and math.dist(pos, self.automaton.states[self.selected]) > 30:
+        # If 10 frames of holding the mouse down have passed,
+        # and the mouse has moved more than 10 px from the state center
+        if self.drag == 10 and math.dist(pos, self.automaton.states[self.selected]) > 10:
+            # Set the dragging state to 11, where the actual dragging happens
             self.drag = 11
         elif self.drag == 11:
+            # Move the state to where the mosue is positioned
             self.automaton.states[self.selected] = pos
-        elif self.drag > 0:
+        elif 0 < self.drag < 10:
             self.drag += 1
 
         # Deselect the currently selected object by pressing the escape key
