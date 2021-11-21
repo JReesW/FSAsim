@@ -134,27 +134,36 @@ class SimulateScene(Scene):
         super().handle_events(events)
 
         for event in events:
+            # Check if the left mouse button is down
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = pygame.mouse.get_pos()
                 found = False
+                # Check if the mouse click happened inside a state circle
                 for s in self.automaton.states:
                     if math.dist(self.automaton.states[s], pos) < 30:
+                        # Check if an arrow connection is being made
                         if self.arrow is not None:
+                            # Add a transition to the automaton
                             val = len([s for (s, v) in self.automaton.transitions if s == self.selected])
                             self.automaton.add_transition(self.selected, s, str(val))
-                            print(self.automaton.transitions)
                         else:
+                            # Set the clicked on state as the currently selected state
                             self.selected = s
                         found = True
+                # If no state was detected, deselect the currently selected object
                 if not found:
                     self.selected = None
-                    i = 0
-                    while (lbl := f"q{i}") in self.automaton.states.keys():
-                        i += 1
-                    self.automaton.states[lbl] = pygame.mouse.get_pos()
+                    # If the left CRTL button is being held, create a new state
+                    if pygame.key.get_pressed()[pygame.K_LCTRL]:
+                        i = 0
+                        while (lbl := f"q{i}") in self.automaton.states.keys():
+                            i += 1
+                        self.automaton.states[lbl] = pygame.mouse.get_pos()
 
+        # Deselect the currently selected object by pressing the escape key
         if pygame.key.get_pressed()[pygame.K_ESCAPE]:
             self.selected = None
+        # Create an arrow from the currently selected state to the mouse pointer
         elif pygame.key.get_pressed()[pygame.K_LSHIFT] and self.selected is not None:
             self.arrow = pygame.mouse.get_pos()
         else:
@@ -165,15 +174,20 @@ class SimulateScene(Scene):
 
     def render(self, surface):
         super().render(surface)
+
+        # Draw a circle for each state
         for s in self.automaton.states:
             color = (150, 150, 255) if s == self.selected else (0, 0, 0)
             pygame.draw.circle(surface, color, self.automaton.states[s], 30, 3)
 
+        # Draw an arrow for each transition
         for (s, v), e in self.automaton.transitions.items():
+            # Get the points of the two connected states
             x1 = self.automaton.states[s][0]
             y1 = self.automaton.states[s][1]
             x2 = self.automaton.states[e][0]
             y2 = self.automaton.states[e][1]
+            # Calculate the angle between them and move the starting and ending points to the edge of the states
             angle = math.atan2(y1 - y2, x1 - x2)
             adjusted_start = (x1 - (math.cos(angle) * 30), y1 - (math.sin(angle) * 30))
             adjusted_end = (x2 + (math.cos(angle) * 30), y2 + (math.sin(angle) * 30))
@@ -184,8 +198,9 @@ class SimulateScene(Scene):
             arrow_r = (adjusted_end[0] + (math.cos(angle + 0.5) * 10), adjusted_end[1] + (math.sin(angle + 0.5) * 10))
             pygame.draw.polygon(surface, (0, 0, 0), [adjusted_end, arrow_l, arrow_r], width=0)
 
+        # Draw an arrow from the selected circle to the mouse when holding shift
         if self.arrow is not None:
-            # For making the arrow start from the edge of a circle, rather than the center
+            # Similar to above
             x = self.automaton.states[self.selected][0]
             y = self.automaton.states[self.selected][1]
             angle = math.atan2(y - self.arrow[1], x - self.arrow[0])
