@@ -168,6 +168,16 @@ class SimulateScene(Scene):
             elif event.type == pygame.MOUSEBUTTONUP:
                 # Stop the dragging state when the left mouse button is released
                 self.drag = 0
+            # Check if the 'a' key was pressed, and if so, toggle the selected state being an acceptor
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_a and self.selected is not None:
+                if self.selected not in self.automaton.acceptors:
+                    self.automaton.add_acceptor(self.selected)
+                else:
+                    print("???")
+                    self.automaton.remove_acceptor(self.selected)
+            # Check if the 's' key was pressed, and if so, set the selected state to be the starting state
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_s and self.selected is not None:
+                self.automaton.start = self.selected
 
         # If 10 frames of holding the mouse down have passed,
         # and the mouse has moved more than 10 px from the state center
@@ -186,6 +196,7 @@ class SimulateScene(Scene):
         # Create an arrow from the currently selected state to the mouse pointer
         elif pygame.key.get_pressed()[pygame.K_LSHIFT] and self.selected is not None:
             self.arrow = pygame.mouse.get_pos()
+        # Delete the currently selected state when the delete key has been pressed
         elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selected is not None:
             self.automaton.remove_state(self.selected)
             self.selected = None
@@ -202,6 +213,16 @@ class SimulateScene(Scene):
         for s in self.automaton.states:
             color = (150, 150, 255) if s == self.selected else (0, 0, 0)
             pygame.draw.circle(surface, color, self.automaton.states[s], 30, 3)
+            # Draw another smaller circle if the state is an accepting state
+            if s in self.automaton.acceptors:
+                pygame.draw.circle(surface, color, self.automaton.states[s], 22, 3)
+            # Draw two lines when the state is the starting state
+            if s == self.automaton.start:
+                startpos = (self.automaton.states[s][0] - 30, self.automaton.states[s][1])
+                endpos1 = (self.automaton.states[s][0] - 40, self.automaton.states[s][1] + 10)
+                endpos2 = (self.automaton.states[s][0] - 40, self.automaton.states[s][1] - 10)
+                pygame.draw.line(surface, color, startpos, endpos1, 3)
+                pygame.draw.line(surface, color, startpos, endpos2, 3)
 
         # Draw an arrow for each transition
         for (s, v), e in self.automaton.transitions.items():

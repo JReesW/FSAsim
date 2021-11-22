@@ -28,6 +28,12 @@ class Automaton:
         if self.start == label:
             self.start = None
 
+    def add_acceptor(self, label):
+        self.acceptors.append(label)
+
+    def remove_acceptor(self, label):
+        self.acceptors.remove(label)
+
     def transition(self, label, letter):
         if (label, letter) in self.transitions:
             return self.transitions[(label, letter)]
