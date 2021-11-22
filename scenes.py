@@ -8,6 +8,8 @@ from uielements import *
 backgroundColor = (220, 220, 220)
 
 
+
+
 # Main Classes:
 
 # Controls the scenes and handles transitions between them
@@ -137,7 +139,6 @@ class SimulateScene(Scene):
 
         pos = pygame.mouse.get_pos()
 
-        # print(self.drag)
         for event in events:
             # Check if the left mouse button is down
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -184,7 +185,7 @@ class SimulateScene(Scene):
             # Set the dragging state to 11, where the actual dragging happens
             self.drag = 11
         elif self.drag == 11:
-            # Move the state to where the mosue is positioned
+            # Move the state to where the mouse is positioned
             self.automaton.states[self.selected] = pos
         elif 0 < self.drag < 10:
             self.drag += 1
@@ -260,6 +261,10 @@ class SimulateScene(Scene):
             arrow_l = (self.arrow[0] + (math.cos(angle - 0.5) * 10), self.arrow[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (self.arrow[0] + (math.cos(angle + 0.5) * 10), self.arrow[1] + (math.sin(angle + 0.5) * 10))
             pygame.draw.polygon(surface, (0, 0, 0), [self.arrow, arrow_l, arrow_r], width=0)
+
+        pygame.draw.circle(surface, (0, 0, 0), (100, 100), 30, 3)
+        pygame.draw.circle(surface, (0, 0, 0), (100, 400), 30, 3)
+        # pygame.draw.arc(surface, (0, 0, 0))
 
 
 class StateSettingsScene(Scene):
