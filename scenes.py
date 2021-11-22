@@ -173,7 +173,6 @@ class SimulateScene(Scene):
                 if self.selected not in self.automaton.acceptors:
                     self.automaton.add_acceptor(self.selected)
                 else:
-                    print("???")
                     self.automaton.remove_acceptor(self.selected)
             # Check if the 's' key was pressed, and if so, set the selected state to be the starting state
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_s and self.selected is not None:
@@ -208,6 +207,11 @@ class SimulateScene(Scene):
 
     def render(self, surface):
         super().render(surface)
+
+        text(surface, "a - Toggle acceptor", (20, 670), regularfont, (0, 0, 0))
+        text(surface, "s - Set starting state", (20, 650), regularfont, (0, 0, 0))
+        text(surface, "left crtl + click - Create state", (20, 630), regularfont, (0, 0, 0))
+        text(surface, "shift + click - Create transition", (20, 610), regularfont, (0, 0, 0))
 
         # Draw a circle for each state
         for s in self.automaton.states:
