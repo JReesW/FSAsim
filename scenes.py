@@ -1,4 +1,5 @@
 import pygame
+import pygame.gfxdraw
 import math
 
 from algorithm import *
@@ -6,7 +7,7 @@ from uielements import *
 
 
 backgroundColor = (220, 220, 220)
-
+black = (0, 0, 0)
 
 
 
@@ -132,12 +133,15 @@ class SimulateScene(Scene):
         self.arrow = None
         self.automaton = Automaton()
 
+
         self.drag = 0
+        self.mousepos = 0
 
     def handle_events(self, events):
         super().handle_events(events)
 
         pos = pygame.mouse.get_pos()
+        self.mousepos = pos
 
         for event in events:
             # Check if the left mouse button is down
@@ -209,14 +213,14 @@ class SimulateScene(Scene):
     def render(self, surface):
         super().render(surface)
 
-        text(surface, "a - Toggle acceptor", (20, 670), regularfont, (0, 0, 0))
-        text(surface, "s - Set starting state", (20, 650), regularfont, (0, 0, 0))
-        text(surface, "left crtl + click - Create state", (20, 630), regularfont, (0, 0, 0))
-        text(surface, "shift + click - Create transition", (20, 610), regularfont, (0, 0, 0))
+        text(surface, "a - Toggle acceptor", (20, 670), regularfont, black)
+        text(surface, "s - Set starting state", (20, 650), regularfont, black)
+        text(surface, "left crtl + click - Create state", (20, 630), regularfont, black)
+        text(surface, "shift + click - Create transition", (20, 610), regularfont, black)
 
         # Draw a circle for each state
         for s in self.automaton.states:
-            color = (150, 150, 255) if s == self.selected else (0, 0, 0)
+            color = (150, 150, 255) if s == self.selected else black
             pygame.draw.circle(surface, color, self.automaton.states[s], 30, 3)
             # Draw another smaller circle if the state is an accepting state
             if s in self.automaton.acceptors:
@@ -240,12 +244,12 @@ class SimulateScene(Scene):
             angle = math.atan2(y1 - y2, x1 - x2)
             adjusted_start = (x1 - (math.cos(angle) * 30), y1 - (math.sin(angle) * 30))
             adjusted_end = (x2 + (math.cos(angle) * 30), y2 + (math.sin(angle) * 30))
-            pygame.draw.line(surface, (0, 0, 0), adjusted_start, adjusted_end, 3)
+            pygame.draw.line(surface, black, adjusted_start, adjusted_end, 3)
 
             # Arrow head
             arrow_l = (adjusted_end[0] + (math.cos(angle - 0.5) * 10), adjusted_end[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (adjusted_end[0] + (math.cos(angle + 0.5) * 10), adjusted_end[1] + (math.sin(angle + 0.5) * 10))
-            pygame.draw.polygon(surface, (0, 0, 0), [adjusted_end, arrow_l, arrow_r], width=0)
+            pygame.draw.polygon(surface, black, [adjusted_end, arrow_l, arrow_r], width=0)
 
         # Draw an arrow from the selected circle to the mouse when holding shift
         if self.arrow is not None:
@@ -255,16 +259,34 @@ class SimulateScene(Scene):
             angle = math.atan2(y - self.arrow[1], x - self.arrow[0])
             adjusted_start = (x - (math.cos(angle) * 30), y - (math.sin(angle) * 30))
             adjusted_end = (self.arrow[0] + (math.cos(angle) * 3), self.arrow[1] + (math.sin(angle) * 3))
-            pygame.draw.line(surface, (0, 0, 0), adjusted_start, adjusted_end, 3)
+            pygame.draw.line(surface, black, adjusted_start, adjusted_end, 3)
 
             # Arrow head
             arrow_l = (self.arrow[0] + (math.cos(angle - 0.5) * 10), self.arrow[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (self.arrow[0] + (math.cos(angle + 0.5) * 10), self.arrow[1] + (math.sin(angle + 0.5) * 10))
-            pygame.draw.polygon(surface, (0, 0, 0), [self.arrow, arrow_l, arrow_r], width=0)
+            pygame.draw.polygon(surface, black, [self.arrow, arrow_l, arrow_r], width=0)
 
-        pygame.draw.circle(surface, (0, 0, 0), (100, 100), 30, 3)
-        pygame.draw.circle(surface, (0, 0, 0), (100, 400), 30, 3)
-        # pygame.draw.arc(surface, (0, 0, 0))
+        # pygame.draw.circle(surface, black, (100, 100), 30, 3)
+        # pygame.draw.circle(surface, black, (100, 400), 30, 3)
+        # if len(self.automaton.states) > 0:
+        #     pygame.draw.lines(surface, black, False, bezier([(100, 100), (200, 300), (100, 500)], 100), 3)
+
+        # center, radius = circle_from_3_points((200, 200), (300, 300), (400, 400))
+        # arc = arc_to_polygon(center, radius, 3, 0, 1.5*math.pi)
+        # pygame.gfxdraw.aapolygon(surface, arc, black)
+        # pygame.gfxdraw.filled_polygon(surface, arc, black)
+
+        # circlerect = circle_to_rect(center, radius)
+        # pygame.draw.arc(surface, black, circlerect, 0, math.tau, 4)
+        # pygame.gfxdraw.arc(surface, center[0], center[1], radius, 0, 359, black)
+
+        # if len(self.automaton.states) >= 3:
+        #     pygame.draw.lines(surface, black, False, bezier(self.automaton.states.values(), 1000), 3)
+
+        pygame.draw.circle(surface, black, (200, 200), 30, 3)
+        pygame.draw.circle(surface, black, (400, 400), 30, 3)
+
+        draw_arc(surface, (200, 200), self.mousepos, (400, 400))
 
 
 class StateSettingsScene(Scene):
