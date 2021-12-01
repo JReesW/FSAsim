@@ -2,8 +2,6 @@ import math
 
 import pygame
 import pygame.gfxdraw
-from pygame import Rect
-from typing import Tuple
 
 
 class StartError(Exception):
@@ -23,7 +21,7 @@ class Automaton:
         self.current = None
 
     def add_transition(self, start, end, via):
-        self.transitions[(start, via)] = end
+        self.transitions[(start, via)] = (end, (0, 0))
 
     def add_state(self, label, pos):
         self.states[label] = pos
@@ -31,7 +29,7 @@ class Automaton:
     def remove_state(self, label):
         del self.states[label]
 
-        self.transitions = {(s, v): e for (s, v), e in self.transitions.items() if label not in [s, e]}
+        self.transitions = {(s, v): (e, m) for (s, v), (e, m) in self.transitions.items() if label not in [s, e]}
         self.acceptors = [a for a in self.acceptors if a != label]
         if self.start == label:
             self.start = None
@@ -99,7 +97,6 @@ def between(a, b, segment):
     return round(ax - (math.cos(angle) * distance)), round(ay - (math.sin(angle) * distance))
 
 
-# Circles, aka HELL
 def circle_from_3_points(a, b, c):
     ax, ay, bx, by, cx, cy = *a, *b, *c
     temp = bx * bx + by * by
@@ -113,115 +110,153 @@ def circle_from_3_points(a, b, c):
     center_x = (bc * (by - cy) - cd * (ay - by)) / det
     center_y = ((ax - bx) * cd - (bx - cx) * bc) / det
     radius = math.sqrt((center_x - ax)**2 + (center_y - ay)**2)
+
+    if radius > math.dist(a, c) * 5:
+        return None, 0
     return (round(center_x), round(center_y)), round(radius)
 
 
-def arc_to_polygon(center, r, width, start, stop, sign):
+def arc_to_polygon(center, r, width, start, stop, clockwise=True):
     x, y = center
     outer = []
     inner = []
+    segments = r//2  # 200
+    sign = 1 if clockwise else -1
 
-    n = round(r * abs(stop - start) / 20)
-    if n < 2:
-        n = 2
+    if stop < start:
+        stop += math.tau
 
-    for i in range(n):
-        delta = i / (n - 1)
-        phi0 = start + (stop - start) * delta
-        x0 = round(x + r * math.cos(phi0))
-        y0 = round(y + r * math.sin(phi0))
-        outer.append((x0, y0))
-        phi1 = stop + (start - stop) * delta
-        x1 = round(x + (r - width) * math.cos(phi1))
-        y1 = round(y + (r - width) * math.sin(phi1))
-        inner.append((x1, y1))
+    if not clockwise:
+        start += math.tau
 
-    return outer + inner
+    angle_segment = abs(start - stop) / segments
+
+    for n in range(segments + 1):
+        arc_x = x + r * math.cos(start + (n * angle_segment * sign))
+        arc_y = y + r * math.sin(start + (n * angle_segment * sign))
+        outer.append((arc_x, arc_y))
+
+        arc_x = x + (r - width/2) * math.cos(start + (n * angle_segment * sign))
+        arc_y = y + (r - width/2) * math.sin(start + (n * angle_segment * sign))
+        inner.append((arc_x, arc_y))
+
+    return outer + list(reversed(inner))
 
 
-def draw_arc(surface, start, mid, end):
+def draw_arc(surface, start, mid, end, color, return_path=False):
     center, radius = circle_from_3_points(start, mid, end)
 
     if center is not None:
-        pygame.draw.circle(surface, (0, 0, 255), center, radius, 3)
-        pygame.draw.circle(surface, (0, 0, 255), center, 2, 3)
+        start_angle, end_angle, is_reversed = adjusted_angles(start, mid, end)
 
-        # i_start = sorted(intersections(center, radius, start), key=lambda x: math.dist(x, mid))[0]
-        # i_end = sorted(intersections(center, radius, end), key=lambda x: math.dist(x, mid))[0]
-        # i_start = intersections(center, radius, start)[1]
-        # i_end = intersections(center, radius, end)[0]
-        #
-        # start_angle = get_angle(center, start) + math.pi
-        # end_angle = get_angle(center, end) + math.pi
+        path = arc_to_polygon(center, radius, 3, start_angle, end_angle, not is_reversed)
+        pygame.gfxdraw.aapolygon(surface, path, color)
+        pygame.gfxdraw.filled_polygon(surface, path, color)
 
-        dx = end[0] - start[0]
-        dy = end[1] - start[1]
-        scale = math.sqrt(dx * dx + dy * dy)
-        parallel = (dx * (mid[0] - start[0]) + dy * (mid[1] - start[1])) / (scale * scale)
-        perpendicular = (dx * (mid[1] - start[1]) - dy * (mid[0] - start[0])) / scale
-        is_reversed = perpendicular > 0
-        reverse_scale = 1 if is_reversed else -1
-        start_angle = get_angle(start, center) - reverse_scale * 30 / radius
-        end_angle = get_angle(end, center) + reverse_scale * 30 / radius
-        start_x = center[0] + radius * math.cos(start_angle)
-        start_y = center[1] + radius * math.sin(start_angle)
-        end_x = center[0] + radius * math.cos(end_angle)
-        end_y = center[1] + radius * math.sin(end_angle)
-
-        if not is_reversed:
-            start_angle, end_angle = end_angle, start_angle
-
-        path = arc_to_polygon(center, radius, 3, start_angle, end_angle, -reverse_scale)
-        pygame.gfxdraw.aapolygon(surface, path, (0, 0, 0))
-        pygame.gfxdraw.filled_polygon(surface, path, (0, 0, 0))
+        if return_path:
+            return path
     else:
-        pass  # Regular line
+        x1, y1 = start
+        x2, y2 = end
+
+        # Calculate the angle between them and move the starting and ending points to the edge of the states
+        angle = get_angle(start, end)
+        adjusted_start = (x1 - (math.cos(angle) * 30), y1 - (math.sin(angle) * 30))
+        adjusted_end = (x2 + (math.cos(angle) * 30), y2 + (math.sin(angle) * 30))
+        pygame.draw.line(surface, color, adjusted_start, adjusted_end, 3)
 
 
+# Get the angle from a to b, in radians
 def get_angle(a, b):
     return math.atan2(a[1] - b[1], a[0] - b[0])
 
 
-def intersections(c0, r0, c1):
-    x0, y0 = c0
-    x1, y1 = c1
-    r1 = 30
+# Creates a vector from the middle of 'start' to 'end' that points towards 'mid'.
+# Represented as the length of the vector and the rotational distance away from the angle of 'start' to 'end'
+def vectorize(start, mid, end):
+    midway = between(start, end, 0.5)
 
-    d = math.dist(c0, c1)
+    main_angle = get_angle(midway, end)
+    vec_angle = get_angle(midway, mid)
+    angle = (vec_angle - main_angle) / math.pi
 
-    a = (r0 ** 2 - r1 ** 2 + d ** 2) / (2 * d)
-    h = math.sqrt(r0 ** 2 - a ** 2)
-    x2 = x0 + a * (x1 - x0) / d
-    y2 = y0 + a * (y1 - y0) / d
+    distance = math.dist(midway, mid)
 
-    x3 = x2 + h * (y1 - y0) / d
-    y3 = y2 - h * (x1 - x0) / d
-    x4 = x2 - h * (y1 - y0) / d
-    y4 = y2 + h * (x1 - x0) / d
-
-    return (x3, y3), (x4, y4)
+    return distance, angle
 
 
-# test = Automaton()
-#
-# test.add_state("q0", (0, 0))
-# test.add_state("q1", (0, 0))
-# test.add_state("q2", (0, 0))
-# test.add_state("q3", (0, 0))
-#
-# test.add_transition("q0", "q1", "0")
-# test.add_transition("q0", "q0", "1")
-# test.add_transition("q1", "q1", "0")
-# test.add_transition("q1", "q2", "1")
-# test.add_transition("q2", "q3", "0")
-# test.add_transition("q2", "q0", "1")
-# test.add_transition("q3", "q3", "0")
-# test.add_transition("q3", "q3", "1")
-#
-# # test.start = "q0"
-# # test.acceptors = ["q3"]
-# test.remove_state("q2")
-#
-#
-# print(test.states)
-# print(test.transitions)
+# Calculates the coordinates at the end of the given vector, reverse of above
+def from_vector(start, end, vector):
+    distance = vector[0]
+    angle = vector[1] * math.pi
+
+    midway = between(start, end, 0.5)
+    length = distance  # math.dist(midway, end) * distance
+    ang = get_angle(midway, end)
+
+    x = midway[0] + length * (math.cos(ang - angle))
+    y = midway[1] + length * (math.sin(ang - angle))
+
+    return x, y
+
+
+def adjusted_angles(start, mid, end):
+    center, radius = circle_from_3_points(start, mid, end)
+
+    if center is None:
+        return None, None, None
+
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    scale = math.sqrt(dx * dx + dy * dy)
+    perpendicular = (dx * (mid[1] - start[1]) - dy * (mid[0] - start[0])) / scale
+    is_reversed = perpendicular > 0
+    reverse_scale = 1 if is_reversed else -1
+
+    start_angle = get_angle(start, center) - reverse_scale * 30 / radius
+    end_angle = get_angle(end, center) + reverse_scale * 30 / radius
+
+    return start_angle, end_angle, is_reversed
+
+
+# DISTANCE POINT TO LINE SEGMENT
+def point_to_segment(pnt, start, end):
+    def dot(v, w):
+        x, y = v
+        X, Y = w
+        return x*X + y*Y
+
+    def length(v):
+        x, y = v
+        return math.sqrt(x*x + y*y)
+
+    def vector(b, e):
+        x, y = b
+        X, Y = e
+        return X - x, Y - y
+
+    def unit(v):
+        x, y = v
+        mag = length(v)
+        return x / mag, y / mag
+
+    def distance(p0, p1):
+        return length(vector(p0, p1))
+
+    def scale(v, sc):
+        x, y = v
+        return x * sc, y * sc
+
+    line_vec = vector(start, end)
+    pnt_vec = vector(start, pnt)
+    line_len = length(line_vec)
+    line_unitvec = unit(line_vec)
+    pnt_vec_scaled = scale(pnt_vec, 1.0 / line_len)
+    t = dot(line_unitvec, pnt_vec_scaled)
+    if t < 0.0:
+        t = 0.0
+    elif t > 1.0:
+        t = 1.0
+    nearest = scale(line_vec, t)
+    dist = distance(nearest, pnt_vec)
+    return dist

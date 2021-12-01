@@ -10,7 +10,6 @@ backgroundColor = (220, 220, 220)
 black = (0, 0, 0)
 
 
-
 # Main Classes:
 
 # Controls the scenes and handles transitions between them
@@ -130,11 +129,12 @@ class SimulateScene(Scene):
         self.ui = {
         }
         self.selected = None
+        self.selectedT = None
         self.arrow = None
         self.automaton = Automaton()
 
-
         self.drag = 0
+        self.dragpos = (0, 0)
         self.mousepos = 0
 
     def handle_events(self, events):
@@ -147,6 +147,34 @@ class SimulateScene(Scene):
             # Check if the left mouse button is down
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 found = False
+                # Check if the mouse click happened on a transition arrow
+                for (s, v), (e, m) in self.automaton.transitions.items():
+                    a = self.automaton.states[s]
+                    b = self.automaton.states[e]
+                    c, r = circle_from_3_points(a, mid := from_vector(a, b, m), b)
+
+                    # Check if the arrow is curved
+                    if c is not None:
+                        s_angle, e_angle, rev = adjusted_angles(a, mid, b)
+                        polygon = arc_to_polygon(c, r, 3, s_angle, e_angle, not rev)
+
+                        for p in polygon:
+                            if math.dist(p, pos) < 5 and self.arrow is None:
+                                self.selected = None
+                                self.selectedT = (s, v)
+                                found = True
+                                self.drag = 1
+                                self.dragpos = pos
+                                break
+                    else:
+                        self.automaton.transitions[(s, v)] = (e, (0, 0))
+                        if point_to_segment(pos, a, b) < 7 and self.arrow is None:
+                            self.selected = None
+                            self.selectedT = (s, v)
+                            found = True
+                            self.drag = 1
+                            self.dragpos = pos
+                            break
                 # Check if the mouse click happened inside a state circle
                 for s in self.automaton.states:
                     if math.dist(self.automaton.states[s], pos) < 30:
@@ -158,12 +186,15 @@ class SimulateScene(Scene):
                         else:
                             # Set the clicked on state as the currently selected state
                             self.selected = s
+                            self.selectedT = None
                             # Set the dragging counter to 1, to initiate dragging
                             self.drag = 1
+                            self.dragpos = pos
                         found = True
                 # If no state was detected, deselect the currently selected object
                 if not found:
                     self.selected = None
+                    self.selectedT = None
                     # If the left CRTL button is being held, create a new state
                     if pygame.key.get_pressed()[pygame.K_LCTRL]:
                         i = 0
@@ -184,13 +215,20 @@ class SimulateScene(Scene):
                 self.automaton.start = self.selected
 
         # If 10 frames of holding the mouse down have passed,
-        # and the mouse has moved more than 10 px from the state center
-        if self.drag == 10 and math.dist(pos, self.automaton.states[self.selected]) > 10:
+        # and the mouse has moved more than 10 px from the starting position of the drag
+        if self.drag == 10 and math.dist(pos, self.dragpos) > 10:
             # Set the dragging state to 11, where the actual dragging happens
             self.drag = 11
         elif self.drag == 11:
-            # Move the state to where the mouse is positioned
-            self.automaton.states[self.selected] = pos
+            # Move the state to where the mouse is positioned if the selected element is a state
+            if self.selected is not None:
+                self.automaton.states[self.selected] = pos
+            # Otherwise, curve the selected arrow to the mouse position
+            elif self.selectedT is not None:
+                s, v = self.selectedT
+                e, _ = self.automaton.transitions[self.selectedT]
+                mid = vectorize(self.automaton.states[s], self.mousepos, self.automaton.states[e])
+                self.automaton.transitions[(s, v)] = (e, mid)
         elif 0 < self.drag < 10:
             self.drag += 1
 
@@ -204,6 +242,10 @@ class SimulateScene(Scene):
         elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selected is not None:
             self.automaton.remove_state(self.selected)
             self.selected = None
+        elif pygame.key.get_pressed()[pygame.K_RSHIFT] and len(self.automaton.states) >= 2:
+            for (s, v), (e, m) in self.automaton.transitions.items():
+                mid = vectorize(self.automaton.states[s], self.mousepos, self.automaton.states[e])
+                self.automaton.transitions[(s, v)] = (e, mid)
         else:
             self.arrow = None
 
@@ -213,6 +255,7 @@ class SimulateScene(Scene):
     def render(self, surface):
         super().render(surface)
 
+        # Show instructions on screen
         text(surface, "a - Toggle acceptor", (20, 670), regularfont, black)
         text(surface, "s - Set starting state", (20, 650), regularfont, black)
         text(surface, "left crtl + click - Create state", (20, 630), regularfont, black)
@@ -234,22 +277,29 @@ class SimulateScene(Scene):
                 pygame.draw.line(surface, color, startpos, endpos2, 3)
 
         # Draw an arrow for each transition
-        for (s, v), e in self.automaton.transitions.items():
-            # Get the points of the two connected states
-            x1 = self.automaton.states[s][0]
-            y1 = self.automaton.states[s][1]
-            x2 = self.automaton.states[e][0]
-            y2 = self.automaton.states[e][1]
-            # Calculate the angle between them and move the starting and ending points to the edge of the states
-            angle = math.atan2(y1 - y2, x1 - x2)
-            adjusted_start = (x1 - (math.cos(angle) * 30), y1 - (math.sin(angle) * 30))
-            adjusted_end = (x2 + (math.cos(angle) * 30), y2 + (math.sin(angle) * 30))
-            pygame.draw.line(surface, black, adjusted_start, adjusted_end, 3)
+        for (s, v), (e, m) in self.automaton.transitions.items():
+            start = self.automaton.states[s]
+            end = self.automaton.states[e]
+            mid = from_vector(start, end, m)
 
-            # Arrow head
-            arrow_l = (adjusted_end[0] + (math.cos(angle - 0.5) * 10), adjusted_end[1] + (math.sin(angle - 0.5) * 10))
-            arrow_r = (adjusted_end[0] + (math.cos(angle + 0.5) * 10), adjusted_end[1] + (math.sin(angle + 0.5) * 10))
-            pygame.draw.polygon(surface, black, [adjusted_end, arrow_l, arrow_r], width=0)
+            color = (150, 150, 255) if (s, v) == self.selectedT else black
+            path = draw_arc(surface, start, mid, end, color, return_path=True)
+
+            # Arrow angle
+            center, radius = circle_from_3_points(start, mid, end)
+            if center is not None:
+                pathmid = len(path)//2
+                angle = get_angle(path[pathmid-2], path[pathmid-1])
+                adjusted_end = between(path[pathmid], path[pathmid-1], 0.5)
+            else:
+                angle = get_angle(start, end)
+                adjusted_end = (end[0] + math.cos(angle) * 30, end[1] + math.sin(angle) * 30)
+            arrow_l = (adjusted_end[0] + (math.cos(angle - 0.5) * 10),
+                       adjusted_end[1] + (math.sin(angle - 0.5) * 10))
+            arrow_r = (adjusted_end[0] + (math.cos(angle + 0.5) * 10),
+                       adjusted_end[1] + (math.sin(angle + 0.5) * 10))
+
+            pygame.draw.polygon(surface, color, [adjusted_end, arrow_l, arrow_r], width=0)
 
         # Draw an arrow from the selected circle to the mouse when holding shift
         if self.arrow is not None:
@@ -265,28 +315,6 @@ class SimulateScene(Scene):
             arrow_l = (self.arrow[0] + (math.cos(angle - 0.5) * 10), self.arrow[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (self.arrow[0] + (math.cos(angle + 0.5) * 10), self.arrow[1] + (math.sin(angle + 0.5) * 10))
             pygame.draw.polygon(surface, black, [self.arrow, arrow_l, arrow_r], width=0)
-
-        # pygame.draw.circle(surface, black, (100, 100), 30, 3)
-        # pygame.draw.circle(surface, black, (100, 400), 30, 3)
-        # if len(self.automaton.states) > 0:
-        #     pygame.draw.lines(surface, black, False, bezier([(100, 100), (200, 300), (100, 500)], 100), 3)
-
-        # center, radius = circle_from_3_points((200, 200), (300, 300), (400, 400))
-        # arc = arc_to_polygon(center, radius, 3, 0, 1.5*math.pi)
-        # pygame.gfxdraw.aapolygon(surface, arc, black)
-        # pygame.gfxdraw.filled_polygon(surface, arc, black)
-
-        # circlerect = circle_to_rect(center, radius)
-        # pygame.draw.arc(surface, black, circlerect, 0, math.tau, 4)
-        # pygame.gfxdraw.arc(surface, center[0], center[1], radius, 0, 359, black)
-
-        # if len(self.automaton.states) >= 3:
-        #     pygame.draw.lines(surface, black, False, bezier(self.automaton.states.values(), 1000), 3)
-
-        pygame.draw.circle(surface, black, (200, 200), 30, 3)
-        pygame.draw.circle(surface, black, (400, 400), 30, 3)
-
-        draw_arc(surface, (200, 200), self.mousepos, (400, 400))
 
 
 class StateSettingsScene(Scene):
