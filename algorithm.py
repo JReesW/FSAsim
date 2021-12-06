@@ -277,20 +277,20 @@ def point_to_segment(pnt, start, end):
         return dist
 
 
-test = Automaton()
-test.add_state('q0', (0, 0))
-test.add_state('q1', (0, 0))
-test.add_state('q2', (0, 0))
-
-test.add_transition('q0', 'q1', '0,1')
-test.add_transition('q1', 'q0', '0')
-test.add_transition('q1', 'q2', '1')
-test.add_transition('q2', 'q0', '0')
-test.add_transition('q2', 'q1', '1')
-
-test.set_start('q0')
-
-test.add_acceptor('q2')
-
-print(test.run("0111"))
+# test = Automaton()
+# test.add_state('q0', (0, 0))
+# test.add_state('q1', (0, 0))
+# test.add_state('q2', (0, 0))
+#
+# test.add_transition('q0', 'q1', '0,1')
+# test.add_transition('q1', 'q0', '0')
+# test.add_transition('q1', 'q2', '1')
+# test.add_transition('q2', 'q0', '0')
+# test.add_transition('q2', 'q1', '1')
+#
+# test.set_start('q0')
+#
+# test.add_acceptor('q2')
+#
+# print(test.run("0111"))
 

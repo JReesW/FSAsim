@@ -251,7 +251,18 @@ class SimulateScene(Scene):
         elif self.drag == 11:
             # Move the state to where the mouse is positioned if the selected element is a state
             if self.selected is not None:
-                self.automaton.states[self.selected] = pos
+                hor = pos[0]
+                ver = pos[1]
+                without_self = [v for k, v in self.automaton.states.items() if k != self.selected]
+                for (h, _) in without_self:
+                    if abs(h - pos[0]) <= 5:
+                        hor = h
+                        break
+                for (_, v) in without_self:
+                    if abs(v - pos[1]) <= 5:
+                        ver = v
+                        break
+                self.automaton.states[self.selected] = (hor, ver)
             # Otherwise, curve the selected arrow to the mouse position
             elif self.selectedT is not None:
                 s, v = self.selectedT
