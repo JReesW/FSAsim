@@ -128,6 +128,7 @@ class SimulateScene(Scene):
     def __init__(self):
         super().__init__()
         self.ui = {
+            'input': TextBox(pygame.Rect(1200, 660, 90, 30))
         }
         self.selected = None
         self.selectedT = None
@@ -181,8 +182,12 @@ class SimulateScene(Scene):
                     if math.dist(self.automaton.states[s], pos) < 30:
                         # Check if an arrow connection is being made
                         if self.arrow is not None:
-                            # Add a transition to the automaton
-                            val = len([s for (s, v) in self.automaton.transitions if s == self.selected])
+                            # Add a transition to the automaton, using the first found bridging value in 'alphabet'
+                            val = '0'
+                            for a in alphabet:
+                                if (self.selected, a) not in self.automaton.transitions:
+                                    val = a
+                                    break
                             vector = (100, 0) if self.selected == s else (0, 0)
                             self.automaton.add_transition(self.selected, s, str(val), force_vector=vector)
                         else:
@@ -253,6 +258,8 @@ class SimulateScene(Scene):
             if self.selected is not None:
                 hor = pos[0]
                 ver = pos[1]
+
+                # Check if a state should snap horizontally/vertically to another state
                 without_self = [v for k, v in self.automaton.states.items() if k != self.selected]
                 for (h, _) in without_self:
                     if abs(h - pos[0]) <= 5:
@@ -286,6 +293,9 @@ class SimulateScene(Scene):
         elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selectedT is not None:
             self.automaton.remove_transition(self.selectedT)
             self.selectedT = None
+        # Delete the currently selected transition when the delete key has been pressed
+        elif pygame.key.get_pressed()[pygame.K_RSHIFT]:
+            print(self.automaton.transitions)
         else:
             self.arrow = None
 
