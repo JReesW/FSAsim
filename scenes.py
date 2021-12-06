@@ -191,7 +191,7 @@ class SimulateScene(Scene):
                                 if (self.selected, a) not in self.automaton.transitions:
                                     val = a
                                     break
-                            vector = (100, 0) if self.selected == s else (0, 0)
+                            vector = (60, 0.5*math.pi) if self.selected == s else (0, 0)
                             self.automaton.add_transition(self.selected, s, str(val), force_vector=vector)
                         else:
                             # Set the clicked on state as the currently selected state
@@ -277,7 +277,10 @@ class SimulateScene(Scene):
             elif self.selectedT is not None:
                 s, v = self.selectedT
                 e, _ = self.automaton.transitions[self.selectedT]
-                mid = vectorize(self.automaton.states[s], self.mousepos, self.automaton.states[e])
+                if s == e:
+                    mid = (60, get_angle(self.mousepos, self.automaton.states[s]))
+                else:
+                    mid = vectorize(self.automaton.states[s], self.mousepos, self.automaton.states[e])
                 self.automaton.transitions[(s, v)] = (e, mid)
         elif 0 < self.drag < 10:
             self.drag += 1
@@ -362,7 +365,7 @@ class SimulateScene(Scene):
                 textmid = between(start, end, 0.5)
             txt, rect = regularfont.render(str(v), color)
             rectc = (textmid[0] - rect.width // 2, textmid[1] - rect.height // 2)
-            pygame.draw.rect(surface, backgroundColor, pygame.Rect(rectc[0]-5, rectc[1]-5, rect.w+10, rect.h+10), 0)
+            pygame.draw.rect(surface, backgroundColor, pygame.Rect(rectc[0]-2, rectc[1]-2, rect.w+4, rect.h+4), 0)
             surface.blit(txt, rectc)
 
         # Draw an arrow from the selected circle to the mouse when holding shift

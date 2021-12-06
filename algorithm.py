@@ -105,6 +105,9 @@ def between(a, b, segment):
 
 
 def circle_from_3_points(a, b, c):
+    if a == c:
+        return between(a, b, 0.75), 30
+
     ax, ay, bx, by, cx, cy = *a, *b, *c
     temp = bx * bx + by * by
     bc = (ax * ax + ay * ay - temp) / 2
@@ -151,11 +154,6 @@ def arc_to_polygon(center, r, width, start, stop, clockwise=True):
 
 
 def draw_arc(surface, start, mid, end, color, return_path=False):
-    if start == end:
-        angle = get_angle(start, mid) + 0.5 * math.pi
-        start = (start[0] + 3*math.cos(angle), start[1] + 3*math.sin(angle))
-        end = (end[0] - 3*math.cos(angle), end[1] - 3*math.sin(angle))
-
     center, radius = circle_from_3_points(start, mid, end)
 
     if center is not None:
@@ -199,6 +197,9 @@ def vectorize(start, mid, end):
 
 # Calculates the coordinates at the end of the given vector, reverse of above
 def from_vector(start, end, vector):
+    if start == end:
+        return start[0] + vector[0] * math.cos(vector[1]), start[1] + vector[0] * math.sin(vector[1])
+
     distance = vector[0]
     angle = vector[1] * math.pi
 
@@ -217,6 +218,13 @@ def adjusted_angles(start, mid, end):
 
     if center is None:
         return None, None, None
+
+    if start == end:
+        angle = get_angle(start, mid)
+        xr, yr = start[0] + 30 * math.cos(angle + math.radians(120)), start[1] + 30 * math.sin(angle + math.radians(120))
+        xl, yl = start[0] + 30 * math.cos(angle - math.radians(120)), start[1] + 30 * math.sin(angle - math.radians(120))
+
+        return get_angle((xr, yr), center), get_angle((xl, yl), center), False
 
     dx = end[0] - start[0]
     dy = end[1] - start[1]
