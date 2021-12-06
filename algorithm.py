@@ -20,8 +20,11 @@ class Automaton:
         self.start = None
         self.current = None
 
-    def add_transition(self, start, end, via):
-        self.transitions[(start, via)] = (end, (0, 0))
+    def add_transition(self, start, end, via, force_vector=(0, 0)):
+        self.transitions[(start, via)] = (end, force_vector)
+
+    def remove_transition(self, key):
+        del self.transitions[key]
 
     def add_state(self, label, pos):
         self.states[label] = pos
@@ -40,11 +43,15 @@ class Automaton:
     def remove_acceptor(self, label):
         self.acceptors.remove(label)
 
+    def set_start(self, start):
+        self.start = start
+        self.current = start
+
     def transition(self, label, letter):
-        if (label, letter) in self.transitions:
-            return self.transitions[(label, letter)]
-        else:
-            return None
+        for (s, v) in self.transitions:
+            if s == label and letter in v:
+                return self.transitions[(label, v)]
+        return None
 
     def run(self, string):
         if self.start is None:
@@ -56,10 +63,10 @@ class Automaton:
         steps = []
 
         for c in string:
-            next = self.transition(self.current, c)
-            if next is not None:
-                steps.append((self.current, next))
-                self.current = next
+            nextstate = self.transition(self.current, c)
+            if nextstate is not None:
+                steps.append((self.current, nextstate[0]))
+                self.current = nextstate[0]
             else:
                 return steps, (self.current, "Failed")
 
@@ -144,6 +151,11 @@ def arc_to_polygon(center, r, width, start, stop, clockwise=True):
 
 
 def draw_arc(surface, start, mid, end, color, return_path=False):
+    if start == end:
+        angle = get_angle(start, mid) + 0.5 * math.pi
+        start = (start[0] + 3*math.cos(angle), start[1] + 3*math.sin(angle))
+        end = (end[0] - 3*math.cos(angle), end[1] - 3*math.sin(angle))
+
     center, radius = circle_from_3_points(start, mid, end)
 
     if center is not None:
@@ -191,7 +203,7 @@ def from_vector(start, end, vector):
     angle = vector[1] * math.pi
 
     midway = between(start, end, 0.5)
-    length = distance  # math.dist(midway, end) * distance
+    length = distance
     ang = get_angle(midway, end)
 
     x = midway[0] + length * (math.cos(ang - angle))
@@ -247,16 +259,38 @@ def point_to_segment(pnt, start, end):
         x, y = v
         return x * sc, y * sc
 
-    line_vec = vector(start, end)
-    pnt_vec = vector(start, pnt)
-    line_len = length(line_vec)
-    line_unitvec = unit(line_vec)
-    pnt_vec_scaled = scale(pnt_vec, 1.0 / line_len)
-    t = dot(line_unitvec, pnt_vec_scaled)
-    if t < 0.0:
-        t = 0.0
-    elif t > 1.0:
-        t = 1.0
-    nearest = scale(line_vec, t)
-    dist = distance(nearest, pnt_vec)
-    return dist
+    if start == end:
+        return math.dist(pnt, start)
+    else:
+        line_vec = vector(start, end)
+        pnt_vec = vector(start, pnt)
+        line_len = length(line_vec)
+        line_unitvec = unit(line_vec)
+        pnt_vec_scaled = scale(pnt_vec, 1.0 / line_len)
+        t = dot(line_unitvec, pnt_vec_scaled)
+        if t < 0.0:
+            t = 0.0
+        elif t > 1.0:
+            t = 1.0
+        nearest = scale(line_vec, t)
+        dist = distance(nearest, pnt_vec)
+        return dist
+
+
+test = Automaton()
+test.add_state('q0', (0, 0))
+test.add_state('q1', (0, 0))
+test.add_state('q2', (0, 0))
+
+test.add_transition('q0', 'q1', '0,1')
+test.add_transition('q1', 'q0', '0')
+test.add_transition('q1', 'q2', '1')
+test.add_transition('q2', 'q0', '0')
+test.add_transition('q2', 'q1', '1')
+
+test.set_start('q0')
+
+test.add_acceptor('q2')
+
+print(test.run("0111"))
+

@@ -8,6 +8,7 @@ from uielements import *
 
 backgroundColor = (220, 220, 220)
 black = (0, 0, 0)
+alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
 # Main Classes:
@@ -182,7 +183,8 @@ class SimulateScene(Scene):
                         if self.arrow is not None:
                             # Add a transition to the automaton
                             val = len([s for (s, v) in self.automaton.transitions if s == self.selected])
-                            self.automaton.add_transition(self.selected, s, str(val))
+                            vector = (100, 0) if self.selected == s else (0, 0)
+                            self.automaton.add_transition(self.selected, s, str(val), force_vector=vector)
                         else:
                             # Set the clicked on state as the currently selected state
                             self.selected = s
@@ -212,7 +214,34 @@ class SimulateScene(Scene):
                     self.automaton.remove_acceptor(self.selected)
             # Check if the 's' key was pressed, and if so, set the selected state to be the starting state
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_s and self.selected is not None:
-                self.automaton.start = self.selected
+                self.automaton.set_start(self.selected)
+            # Change the bridging value of the transition
+            elif event.type == pygame.KEYDOWN and self.selectedT is not None:
+                if event.key == pygame.K_COMMA:
+                    for a in alphabet:
+                        if a not in self.selectedT[1].split(','):
+                            e, m = self.automaton.transitions[self.selectedT]
+                            self.automaton.remove_transition(self.selectedT)
+                            new_v = self.selectedT[1] + f",{a}"
+                            self.automaton.add_transition(self.selectedT[0], e, new_v, force_vector=m)
+                            self.selectedT = (self.selectedT[0], new_v)
+                            break
+                elif event.key == pygame.K_BACKSPACE:
+                    if len(spl := self.selectedT[1].split(',')) > 1:
+                        e, m = self.automaton.transitions[self.selectedT]
+                        self.automaton.remove_transition(self.selectedT)
+                        new_v = ','.join(spl[:-1])
+                        self.automaton.add_transition(self.selectedT[0], e, new_v, force_vector=m)
+                        self.selectedT = (self.selectedT[0], new_v)
+                else:
+                    for a in alphabet:
+                        if pygame.key.get_pressed()[getattr(pygame, f"K_{a}")]:
+                            e, m = self.automaton.transitions[self.selectedT]
+                            self.automaton.remove_transition(self.selectedT)
+                            new_v = ','.join(self.selectedT[1].split(',')[:-1] + [a])
+                            self.automaton.add_transition(self.selectedT[0], e, new_v, force_vector=m)
+                            self.selectedT = (self.selectedT[0], new_v)
+                            break
 
         # If 10 frames of holding the mouse down have passed,
         # and the mouse has moved more than 10 px from the starting position of the drag
@@ -242,15 +271,12 @@ class SimulateScene(Scene):
         elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selected is not None:
             self.automaton.remove_state(self.selected)
             self.selected = None
-        elif pygame.key.get_pressed()[pygame.K_RSHIFT] and len(self.automaton.states) >= 2:
-            for (s, v), (e, m) in self.automaton.transitions.items():
-                mid = vectorize(self.automaton.states[s], self.mousepos, self.automaton.states[e])
-                self.automaton.transitions[(s, v)] = (e, mid)
+        # Delete the currently selected transition when the delete key has been pressed
+        elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selectedT is not None:
+            self.automaton.remove_transition(self.selectedT)
+            self.selectedT = None
         else:
             self.arrow = None
-
-        if pygame.key.get_pressed()[pygame.K_e]:
-            self.switch(StateSettingsScene, [self])
 
     def render(self, surface):
         super().render(surface)
@@ -285,7 +311,7 @@ class SimulateScene(Scene):
             color = (150, 150, 255) if (s, v) == self.selectedT else black
             path = draw_arc(surface, start, mid, end, color, return_path=True)
 
-            # Arrow angle
+            # Arrow head
             center, radius = circle_from_3_points(start, mid, end)
             if center is not None:
                 pathmid = len(path)//2
@@ -301,6 +327,16 @@ class SimulateScene(Scene):
 
             pygame.draw.polygon(surface, color, [adjusted_end, arrow_l, arrow_r], width=0)
 
+            # Arrow value
+            if center is not None:
+                textmid = between(path[len(path)//4], path[3*len(path)//4], 0.5)
+            else:
+                textmid = between(start, end, 0.5)
+            txt, rect = regularfont.render(str(v), color)
+            rectc = (textmid[0] - rect.width // 2, textmid[1] - rect.height // 2)
+            pygame.draw.rect(surface, backgroundColor, pygame.Rect(rectc[0]-5, rectc[1]-5, rect.w+10, rect.h+10), 0)
+            surface.blit(txt, rectc)
+
         # Draw an arrow from the selected circle to the mouse when holding shift
         if self.arrow is not None:
             # Similar to above
@@ -315,20 +351,3 @@ class SimulateScene(Scene):
             arrow_l = (self.arrow[0] + (math.cos(angle - 0.5) * 10), self.arrow[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (self.arrow[0] + (math.cos(angle + 0.5) * 10), self.arrow[1] + (math.sin(angle + 0.5) * 10))
             pygame.draw.polygon(surface, black, [self.arrow, arrow_l, arrow_r], width=0)
-
-
-class StateSettingsScene(Scene):
-    def __init__(self, background):
-        super().__init__()
-        self.background = background
-
-    def handle_events(self, events):
-        pass
-
-    def render(self, surface):
-        self.background.render(surface)
-        sr = pygame.display.get_surface().get_rect()
-        veil = pygame.Surface(sr.size)
-        pygame.draw.rect(veil, (20, 20, 20), surface.get_rect())
-        veil.set_alpha(150)
-        surface.blit(veil, (0, 0))
