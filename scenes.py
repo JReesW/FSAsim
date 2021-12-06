@@ -1,6 +1,7 @@
 import pygame
 import pygame.gfxdraw
 import math
+import os
 
 from algorithm import *
 from uielements import *
@@ -129,7 +130,10 @@ class SimulateScene(Scene):
         super().__init__()
         self.ui = {
             'input': TextBox(pygame.Rect(1030, 660, 190, 30)),
-            'run': Button(pygame.Rect(1230, 660, 60, 30), "RUN", [self.run], [], self)
+            'run': Button(pygame.Rect(1230, 660, 60, 30), "RUN", [self.run], [], self),
+            'filename': TextBox(pygame.Rect(10, 10, 250, 30)),
+            'save': Button(pygame.Rect(10, 50, 70, 30), "SAVE", [self.save], [], self),
+            'load': Button(pygame.Rect(90, 50, 70, 30), "LOAD", [self.load], [], self)
         }
         self.selected = None
         self.selectedT = None
@@ -308,6 +312,8 @@ class SimulateScene(Scene):
     def render(self, surface):
         super().render(surface)
 
+        text(surface, ".fsa", (265, 20), regularfont, black)
+
         # Show instructions on screen
         text(surface, "a - Toggle acceptor", (20, 670), regularfont, black)
         text(surface, "s - Set starting state", (20, 650), regularfont, black)
@@ -386,3 +392,26 @@ class SimulateScene(Scene):
     def run(self):
         steps, (end, result) = self.automaton.run(self.ui['input'].get_text())
         self.result = result
+
+    def save(self):
+        lines = self.automaton.save()
+
+        if (filename := self.ui['filename'].get_text()) == "":
+            i = 1
+            while f"untitled{i}.fsa" not in os.listdir("saves"):
+                i += 1
+            filename = f"untitled{i}"
+
+        f = open(f"saves/{filename}.fsa", "w")
+        for line in lines:
+            f.write(line + "\n")
+        f.close()
+
+    def load(self):
+        filename = f"{self.ui['filename'].get_text()}.fsa"
+
+        if filename in os.listdir("saves"):
+            f = open(f"saves/{filename}")
+            lines = f.readlines()
+            f.close()
+            self.automaton.load(lines)

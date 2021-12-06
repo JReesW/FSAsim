@@ -1,4 +1,5 @@
 import math
+import ast
 
 import pygame
 import pygame.gfxdraw
@@ -47,6 +48,26 @@ class Automaton:
         self.start = start
         self.current = start
 
+    def save(self):
+        states = ";".join([f"{lbl},{pos}" for lbl, pos in self.states.items()])
+        transitions = ";".join([f"{s}_{v}_{e}_{m}" for (s, v), (e, m) in self.transitions.items()])
+        acceptors = ",".join(self.acceptors)
+
+        return [states, transitions, acceptors, self.start]
+
+    def load(self, lines):
+        states, transitions, acceptors, start = [line.strip() for line in lines]
+        states = [s.split(',', 1) for s in states.split(';')]
+        self.states = {k: ast.literal_eval(v) for k, v in states}
+
+        transitions = [t.split('_') for t in transitions.split(';')]
+        self.transitions = {(s, v): (e, ast.literal_eval(m)) for s, v, e, m in transitions}
+
+        self.acceptors = acceptors.split(',')
+
+        self.start = start
+        self.current = start
+
     def transition(self, label, letter):
         for (s, v) in self.transitions:
             if s == label and letter in v:
@@ -56,8 +77,8 @@ class Automaton:
     def run(self, string):
         if self.start is None:
             raise StartError
-        if len(self.acceptors) == 0:
-            raise AcceptError
+        # if len(self.acceptors) == 0:
+        #     raise AcceptError
 
         self.current = self.start
         steps = []
