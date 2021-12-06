@@ -68,12 +68,12 @@ class Automaton:
                 steps.append((self.current, nextstate[0]))
                 self.current = nextstate[0]
             else:
-                return steps, (self.current, "Failed")
+                return steps, (self.current, "Declined")
 
         if self.current in self.acceptors:
-            return steps, (self.current, "Succeeded")
+            return steps, (self.current, "Accepted")
         else:
-            return steps, (self.current, "Failed")
+            return steps, (self.current, "Declined")
 
 
 def bezier(points, segments):

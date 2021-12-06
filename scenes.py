@@ -128,7 +128,8 @@ class SimulateScene(Scene):
     def __init__(self):
         super().__init__()
         self.ui = {
-            'input': TextBox(pygame.Rect(1200, 660, 90, 30))
+            'input': TextBox(pygame.Rect(1030, 660, 190, 30)),
+            'run': Button(pygame.Rect(1230, 660, 60, 30), "RUN", [self.run], [], self)
         }
         self.selected = None
         self.selectedT = None
@@ -138,6 +139,8 @@ class SimulateScene(Scene):
         self.drag = 0
         self.dragpos = (0, 0)
         self.mousepos = 0
+
+        self.result = None
 
     def handle_events(self, events):
         super().handle_events(events)
@@ -182,7 +185,7 @@ class SimulateScene(Scene):
                     if math.dist(self.automaton.states[s], pos) < 30:
                         # Check if an arrow connection is being made
                         if self.arrow is not None:
-                            # Add a transition to the automaton, using the first found bridging value in 'alphabet'
+                            # Add a transition to the automaton, using the first unused bridging value in 'alphabet'
                             val = '0'
                             for a in alphabet:
                                 if (self.selected, a) not in self.automaton.transitions:
@@ -308,6 +311,10 @@ class SimulateScene(Scene):
         text(surface, "left crtl + click - Create state", (20, 630), regularfont, black)
         text(surface, "shift + click - Create transition", (20, 610), regularfont, black)
 
+        if self.result is not None:
+            color = (255, 0, 0) if self.result == "Declined" else (0, 255, 0)
+            text(surface, self.result, (1030, 620), biggerfont, color)
+
         # Draw a circle for each state
         for s in self.automaton.states:
             color = (150, 150, 255) if s == self.selected else black
@@ -372,3 +379,7 @@ class SimulateScene(Scene):
             arrow_l = (self.arrow[0] + (math.cos(angle - 0.5) * 10), self.arrow[1] + (math.sin(angle - 0.5) * 10))
             arrow_r = (self.arrow[0] + (math.cos(angle + 0.5) * 10), self.arrow[1] + (math.sin(angle + 0.5) * 10))
             pygame.draw.polygon(surface, black, [self.arrow, arrow_l, arrow_r], width=0)
+
+    def run(self):
+        steps, (end, result) = self.automaton.run(self.ui['input'].get_text())
+        self.result = result
