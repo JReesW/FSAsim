@@ -9,10 +9,6 @@ class StartError(Exception):
     pass
 
 
-class AcceptError(Exception):
-    pass
-
-
 class Automaton:
     def __init__(self):
         self.states = {}
@@ -52,8 +48,9 @@ class Automaton:
         states = ";".join([f"{lbl},{pos}" for lbl, pos in self.states.items()])
         transitions = ";".join([f"{s}_{v}_{e}_{m}" for (s, v), (e, m) in self.transitions.items()])
         acceptors = ",".join(self.acceptors)
+        start = self.start if self.start is not None else ""
 
-        return [states, transitions, acceptors, self.start]
+        return [states, transitions, acceptors, start]
 
     def load(self, lines):
         states, transitions, acceptors, start = [line.strip() for line in lines]
@@ -64,7 +61,6 @@ class Automaton:
         self.transitions = {(s, v): (e, ast.literal_eval(m)) for s, v, e, m in transitions}
 
         self.acceptors = acceptors.split(',')
-
         self.start = start
         self.current = start
 
@@ -77,8 +73,6 @@ class Automaton:
     def run(self, string):
         if self.start is None:
             raise StartError
-        # if len(self.acceptors) == 0:
-        #     raise AcceptError
 
         self.current = self.start
         steps = []
@@ -115,7 +109,7 @@ def bezier(points, segments):
     return result
 
 
-# Get the coordinate of the point
+# Get the coordinate of the point between a and b
 def between(a, b, segment):
     ax, ay = a
     bx, by = b

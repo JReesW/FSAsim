@@ -7,9 +7,11 @@ from algorithm import *
 from uielements import *
 
 
+# Constants
 backgroundColor = (220, 220, 220)
 black = (0, 0, 0)
 alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+resultColors = {"Accepted": (0, 155, 0), "Declined": (255, 0, 0), "No Start": (0, 0, 255)}
 
 
 # Main Classes:
@@ -143,8 +145,10 @@ class SimulateScene(Scene):
         self.drag = 0
         self.dragpos = (0, 0)
         self.mousepos = 0
+        self.help = False
 
         self.result = None
+        self.fileresult = None
 
     def handle_events(self, events):
         super().handle_events(events)
@@ -227,6 +231,10 @@ class SimulateScene(Scene):
             # Check if the 's' key was pressed, and if so, set the selected state to be the starting state
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_s and self.selected is not None:
                 self.automaton.set_start(self.selected)
+            # Toggle the help info box
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_h\
+                    and self.selected is None and self.selectedT is None:
+                self.help = not self.help
             # Change the bridging value of the transition
             elif event.type == pygame.KEYDOWN and self.selectedT is not None:
                 if event.key == pygame.K_COMMA:
@@ -303,9 +311,6 @@ class SimulateScene(Scene):
         elif pygame.key.get_pressed()[pygame.K_DELETE] and self.selectedT is not None:
             self.automaton.remove_transition(self.selectedT)
             self.selectedT = None
-        # Delete the currently selected transition when the delete key has been pressed
-        elif pygame.key.get_pressed()[pygame.K_RSHIFT]:
-            print(self.automaton.transitions)
         else:
             self.arrow = None
 
@@ -315,14 +320,20 @@ class SimulateScene(Scene):
         text(surface, ".fsa", (265, 20), regularfont, black)
 
         # Show instructions on screen
-        text(surface, "a - Toggle acceptor", (20, 670), regularfont, black)
-        text(surface, "s - Set starting state", (20, 650), regularfont, black)
-        text(surface, "left crtl + click - Create state", (20, 630), regularfont, black)
-        text(surface, "shift + click - Create transition", (20, 610), regularfont, black)
+        if self.help:
+            text(surface, "crtl + click  - Create state", (20, 550), regularfont, black)
+            text(surface, "shift + click - Create transition", (20, 570), regularfont, black)
+            text(surface, "a             - Toggle acceptor", (20, 590), regularfont, black)
+            text(surface, "s             - Set starting state", (20, 610), regularfont, black)
+            text(surface, "delete        - Delete selected state/transition", (20, 630), regularfont, black)
+            text(surface, ",             - Add multiple transitional values", (20, 650), regularfont, black)
+            text(surface, "backspace     - Remove last value of transition", (20, 670), regularfont, black)
+        else:
+            text(surface, "Press h to toggle help", (20, 670), regularfont, black)
 
+        # Show the result of running the string
         if self.result is not None:
-            color = (255, 0, 0) if self.result == "Declined" else (0, 255, 0)
-            text(surface, self.result, (1030, 620), biggerfont, color)
+            text(surface, self.result, (1030, 620), biggerfont, resultColors[self.result])
 
         # Draw a circle for each state
         for s in self.automaton.states:
@@ -390,15 +401,19 @@ class SimulateScene(Scene):
             pygame.draw.polygon(surface, black, [self.arrow, arrow_l, arrow_r], width=0)
 
     def run(self):
-        steps, (end, result) = self.automaton.run(self.ui['input'].get_text())
-        self.result = result
+        try:
+            steps, (end, result) = self.automaton.run(self.ui['input'].get_text())
+        except StartError:
+            self.result = "No Start"
+        else:
+            self.result = result
 
     def save(self):
         lines = self.automaton.save()
 
         if (filename := self.ui['filename'].get_text()) == "":
             i = 1
-            while f"untitled{i}.fsa" not in os.listdir("saves"):
+            while f"untitled{i}.fsa" in os.listdir("saves"):
                 i += 1
             filename = f"untitled{i}"
 
@@ -414,4 +429,7 @@ class SimulateScene(Scene):
             f = open(f"saves/{filename}")
             lines = f.readlines()
             f.close()
+            self.fileresult = f"Successfully loaded {filename}.fsa"
             self.automaton.load(lines)
+        else:
+            self.fileresult = f"No file named {filename}.fsa"
